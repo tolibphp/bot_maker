@@ -3,6 +3,9 @@ from aiogram import Router, F
 from aiogram.types import Message
 import yt_dlp
 
+# We can import premium emojis from the master bot!
+from master_bot.emojis import HELLO, CHART, PEOPLE, INBOX, HOURGLASS, CROSS, MOVIE
+
 router = Router()
 
 def extract_video_info(url: str):
@@ -24,8 +27,8 @@ async def cmd_start(message: Message, db):
         message.from_user.username
     )
     await message.answer(
-        "👋 <b>Xush kelibsiz!</b>\n\n"
-        "Menga TikTok, Instagram, YouTube yoki boshqa saytdan video ssilkasini yuboring va men uni sizga yuklab beraman!",
+        f"{HELLO} <b>Xush kelibsiz!</b>\n\n"
+        f"Menga TikTok, Instagram, YouTube yoki boshqa saytdan video ssilkasini yuboring va men uni sizga yuklab beraman!",
         parse_mode="HTML"
     )
 
@@ -33,35 +36,35 @@ async def cmd_start(message: Message, db):
 async def cmd_stat(message: Message, db):
     users, downloads = await db.get_stats()
     await message.answer(
-        f"📊 <b>Statistika:</b>\n\n"
-        f"👥 Foydalanuvchilar: {users}\n"
-        f"📥 Yuklab olingan videolar: {downloads}",
+        f"{CHART} <b>Statistika:</b>\n\n"
+        f"<blockquote>{PEOPLE} Foydalanuvchilar: <b>{users}</b>\n"
+        f"{INBOX} Yuklab olingan videolar: <b>{downloads}</b></blockquote>",
         parse_mode="HTML"
     )
 
 @router.message(F.text.regexp(r'(https?://[^\s]+)'))
 async def handle_url(message: Message, db):
     url = message.text.strip()
-    wait_msg = await message.answer("⏳ <i>Video yuklanmoqda, kuting...</i>", parse_mode="HTML")
+    wait_msg = await message.answer(f"{HOURGLASS} <i>Video yuklanmoqda, kuting...</i>", parse_mode="HTML")
     
     try:
         info = await asyncio.to_thread(extract_video_info, url)
         
         video_url = info.get('url')
         if not video_url:
-            await wait_msg.edit_text("❌ Videoni yuklab bo'lmadi. Yopiq profil yoki noto'g'ri havola bo'lishi mumkin.")
+            await wait_msg.edit_text(f"{CROSS} Videoni yuklab bo'lmadi. Yopiq profil yoki noto'g'ri havola bo'lishi mumkin.", parse_mode="HTML")
             return
             
         title = info.get('title', 'Video')
         bot_info = await message.bot.get_me()
-        caption = f"🎬 <b>{title}</b>\n\n📥 @{bot_info.username} orqali yuklandi!"
+        caption = f"{MOVIE} <b>{title}</b>\n\n{INBOX} @{bot_info.username} orqali yuklandi!"
         
         try:
             await message.answer_video(video=video_url, caption=caption, parse_mode="HTML")
             await db.add_download(message.from_user.id, url)
             await wait_msg.delete()
         except Exception as send_err:
-            await wait_msg.edit_text(f"📥 <b>Video topildi:</b>\n\n<a href='{video_url}'>Videoni yuklash (Direct Link)</a>", parse_mode="HTML")
+            await wait_msg.edit_text(f"{INBOX} <b>Video topildi:</b>\n\n<a href='{video_url}'>Videoni yuklash (Direct Link)</a>", parse_mode="HTML")
             
     except Exception as e:
-        await wait_msg.edit_text("❌ Xatolik yuz berdi. Bu havola qo'llab-quvvatlanmasligi mumkin yoki yopiq sahifa.")
+        await wait_msg.edit_text(f"{CROSS} Xatolik yuz berdi. Bu havola qo'llab-quvvatlanmasligi mumkin yoki yopiq sahifa.", parse_mode="HTML")
