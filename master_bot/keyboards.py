@@ -120,3 +120,9 @@ def payment_history_kb(page: int, total_pages: int):
     
     buttons.append([InlineKeyboardButton(text="🔙 Balansga qaytish", callback_data="back_to_balance")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def share_ref_link_kb(ref_link: str):
+    share_url = f"https://t.me/share/url?url={ref_link}&text=Bot yaratish uchun eng zo'r platforma!"
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="↗️ Do'stlarga yuborish", url=share_url)]
+    ])
