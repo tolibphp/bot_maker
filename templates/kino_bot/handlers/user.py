@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
 from templates.kino_bot.database import KinoDB
-from templates.kino_bot.keyboards import channel_link_kb, subscription_kb
+from templates.kino_bot.keyboards import user_kb, subscription_kb
 from templates.kino_bot.handlers.subscription import check_subscription, send_subscription_message
 
 
@@ -43,17 +43,14 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
 
         # Professional user greeting — minimal, clean
         name = message.from_user.full_name or message.from_user.username or "Foydalanuvchi"
-        movies_count = await kino_db.get_movies_count()
-
-        channels = await kino_db.get_channels()
-        kb = channel_link_kb(channels) if channels else None
+        user_id = message.from_user.id
 
         await message.answer(
-            f"👋 Assalomu alaykum <b>{name}</b>, "
+            f"👋 Assalomu alaykum "
+            f"<a href='tg://user?id={user_id}'>{name}</a>, "
             f"botimizga xush kelibsiz!\n\n"
-            f"🎬 Botimizda <b>{movies_count}</b> ta kino mavjud.\n\n"
             f"✍🏻 <b>Kino kodini yuboring...</b>",
-            reply_markup=kb,
+            reply_markup=user_kb(),
             parse_mode="HTML"
         )
 
@@ -63,21 +60,17 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
             return
 
         name = message.from_user.full_name or "Admin"
-        movies_count = await kino_db.get_movies_count()
-        channels = await kino_db.get_channels()
-        kb = channel_link_kb(channels) if channels else None
+        user_id = message.from_user.id
 
-        from aiogram.types import ReplyKeyboardRemove
         await message.answer(
-            f"👋 Assalomu alaykum <b>{name}</b>, "
+            f"👋 Assalomu alaykum "
+            f"<a href='tg://user?id={user_id}'>{name}</a>, "
             f"botimizga xush kelibsiz!\n\n"
-            f"🎬 Botimizda <b>{movies_count}</b> ta kino mavjud.\n\n"
-            f"✍🏻 <b>Kino kodini yuboring...</b>",
-            reply_markup=ReplyKeyboardRemove(),
+            f"✍🏻 <b>Kino kodini yuboring...</b>\n\n"
+            f"Admin panelga qaytish uchun /start bosing.",
+            reply_markup=user_kb(),
             parse_mode="HTML"
         )
-        if kb:
-            await message.answer("👇", reply_markup=kb)
 
     @router.callback_query(F.data == "check_sub")
     async def check_sub_callback(callback: CallbackQuery):
@@ -93,30 +86,59 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
                 )
             else:
                 name = callback.from_user.full_name or "Foydalanuvchi"
-                movies_count = await kino_db.get_movies_count()
-                channels = await kino_db.get_channels()
-                kb = channel_link_kb(channels) if channels else None
+                user_id = callback.from_user.id
 
                 await callback.message.answer(
-                    f"👋 Assalomu alaykum <b>{name}</b>, "
+                    f"👋 Assalomu alaykum "
+                    f"<a href='tg://user?id={user_id}'>{name}</a>, "
                     f"botimizga xush kelibsiz!\n\n"
-                    f"🎬 Botimizda <b>{movies_count}</b> ta kino mavjud.\n\n"
                     f"✍🏻 <b>Kino kodini yuboring...</b>",
-                    reply_markup=kb,
+                    reply_markup=user_kb(),
                     parse_mode="HTML"
                 )
         else:
             await callback.answer("❌ Hali obuna bo'lmagansiz!", show_alert=True)
+
+    # --- 📢 Kanalimiz button handler ---
+    @router.message(F.text == "📢 Kanalimiz")
+    async def show_channel(message: Message):
+        if await kino_db.is_banned(message.from_user.id):
+            return
+
+        channels = await kino_db.get_channels()
+        if not channels:
+            await message.answer("📢 Hali kanal qo'shilmagan.")
+            return
+
+        # Build inline buttons with channel links
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        buttons = []
+        for ch in channels:
+            channel_id = ch["channel_id"]
+            name = ch["channel_name"] or channel_id
+            if channel_id.startswith("@"):
+                url = f"https://t.me/{channel_id[1:]}"
+            else:
+                url = f"https://t.me/{channel_id}"
+            buttons.append([
+                InlineKeyboardButton(text=f"📢 {name}", url=url)
+            ])
+
+        await message.answer(
+            "📢 <b>Bizning kanallarimiz:</b>\n\n"
+            "Obuna bo'ling va yangi kinolardan xabardor bo'ling! 👇",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+            parse_mode="HTML"
+        )
 
     # --- Handle ANY text as movie code ---
     @router.message(F.text)
     async def handle_text(message: Message):
         # Skip admin commands
         if message.from_user.id == admin_id:
-            # Don't intercept admin panel button presses
             admin_commands = [
                 "➕ Kino qo'shish", "📋 Kinolar ro'yxati",
-                "📁 Kategoriya boshqarish", "✅ Majburiy obuna",
+                "📂 Kategoriya boshqarish", "✅ Majburiy obuna",
                 "📢 Broadcast", "📊 Statistika",
                 "🚫 Ban / Unban", "👤 User rejimi"
             ]
@@ -154,7 +176,7 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
                 try:
                     await message.answer_document(movie["file_id"], caption=caption, parse_mode="HTML")
                 except Exception:
-                    await message.answer(f"❌ Faylni yuborishda xatolik yuz berdi.")
+                    await message.answer("❌ Faylni yuborishda xatolik yuz berdi.")
         else:
             # Try search by name
             results = await kino_db.search_movies(query, limit=5)

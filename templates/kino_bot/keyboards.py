@@ -4,30 +4,22 @@ from aiogram.types import (
 )
 
 
-def admin_main_kb():
+def user_kb():
+    """Minimal user keyboard — faqat kanal tugmasi."""
     buttons = [
-        [KeyboardButton(text="➕ Kino qo'shish"), KeyboardButton(text="📋 Kinolar ro'yxati")],
-        [KeyboardButton(text="📁 Kategoriya boshqarish"), KeyboardButton(text="✅ Majburiy obuna")],
-        [KeyboardButton(text="📢 Broadcast"), KeyboardButton(text="📊 Statistika")],
-        [KeyboardButton(text="🚫 Ban / Unban"), KeyboardButton(text="👤 User rejimi")],
+        [KeyboardButton(text="📢 Kanalimiz")],
     ]
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
 
-def channel_link_kb(channels: list):
-    """Single inline button with channel link for user welcome."""
-    buttons = []
-    for ch in channels:
-        channel_id = ch["channel_id"]
-        name = ch["channel_name"] or channel_id
-        if channel_id.startswith("@"):
-            url = f"https://t.me/{channel_id[1:]}"
-        else:
-            url = f"https://t.me/{channel_id}"
-        buttons.append([
-            InlineKeyboardButton(text=f"📢 {name}", url=url)
-        ])
-    return InlineKeyboardMarkup(inline_keyboard=buttons) if buttons else None
+def admin_main_kb():
+    buttons = [
+        [KeyboardButton(text="➕ Kino qo'shish"), KeyboardButton(text="📋 Kinolar ro'yxati")],
+        [KeyboardButton(text="📂 Kategoriya boshqarish"), KeyboardButton(text="✅ Majburiy obuna")],
+        [KeyboardButton(text="📢 Broadcast"), KeyboardButton(text="📊 Statistika")],
+        [KeyboardButton(text="🚫 Ban / Unban"), KeyboardButton(text="👤 User rejimi")],
+    ]
+    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
 
 def subscription_kb(channels: list):
@@ -53,7 +45,7 @@ def categories_kb(categories: list):
     for cat in categories:
         buttons.append([
             InlineKeyboardButton(
-                text=f"📁 {cat['name']}",
+                text=f"📂 {cat['name']}",
                 callback_data=f"cat:{cat['id']}"
             )
         ])
@@ -74,8 +66,21 @@ def categories_select_kb(categories: list):
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def movie_pagination_kb(page: int, total_pages: int):
+def movie_list_kb(movies: list, page: int, total_pages: int):
+    """Movie list with inline delete buttons for admin."""
     buttons = []
+    for m in movies:
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"🎬 #{m['code']} - {m['name']}",
+                callback_data="noop"
+            ),
+            InlineKeyboardButton(
+                text="🗑",
+                callback_data=f"delmovie:{m['code']}"
+            ),
+        ])
+    # Pagination
     nav = []
     if page > 0:
         nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"mpage:{page-1}"))
@@ -87,21 +92,8 @@ def movie_pagination_kb(page: int, total_pages: int):
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def movie_list_kb(movies: list, page: int, total_pages: int):
-    """Movie list with inline delete buttons for admin."""
+def movie_pagination_kb(page: int, total_pages: int):
     buttons = []
-    for m in movies:
-        buttons.append([
-            InlineKeyboardButton(
-                text=f"🎬 #{m['code']} - {m['name']}",
-                callback_data=f"noop"
-            ),
-            InlineKeyboardButton(
-                text="🗑",
-                callback_data=f"delmovie:{m['code']}"
-            ),
-        ])
-    # Pagination
     nav = []
     if page > 0:
         nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"mpage:{page-1}"))
