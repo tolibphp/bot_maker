@@ -194,9 +194,9 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
         if message.from_user.id == admin_id:
             admin_commands = [
                 "➕ Kino qo'shish", "📋 Kinolar ro'yxati",
-                "📂 Kategoriya boshqarish", "✅ Majburiy obuna",
-                "📢 Broadcast", "📊 Statistika",
-                "🚫 Ban / Unban", "👤 User rejimi"
+                "📢 Kanal sozlash", "📊 Statistika",
+                "📢 Broadcast", "🚫 Ban / Unban",
+                "👤 User rejimi"
             ]
             if message.text in admin_commands:
                 return

@@ -3,12 +3,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 class AddMovieStates(StatesGroup):
     waiting_name = State()
-    waiting_category = State()
     waiting_file = State()
-
-
-class AddCategoryStates(StatesGroup):
-    waiting_name = State()
 
 
 class AddChannelStates(StatesGroup):
