@@ -31,6 +31,7 @@ def templates_kb():
     buttons = [
         [InlineKeyboardButton(text="🎬 Kino Bot — 35,000 so'm", callback_data="template:kino")],
         [InlineKeyboardButton(text="⭐️ Stars Referral Bot — 35,000 so'm", callback_data="template:stars")],
+        [InlineKeyboardButton(text="💸 Premium Pul Ishlash — 50,000 so'm", callback_data="template:money")],
         [InlineKeyboardButton(text="🔙 Bekor qilish", callback_data="cancel")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
