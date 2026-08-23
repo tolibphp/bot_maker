@@ -17,9 +17,9 @@ def user_kb():
 def admin_main_kb():
     buttons = [
         [KeyboardButton(text="➕ Kino qo'shish"), KeyboardButton(text="📋 Kinolar ro'yxati")],
-        [KeyboardButton(text="📢 Kanal sozlash"), KeyboardButton(text="📊 Statistika")],
-        [KeyboardButton(text="📢 Broadcast"), KeyboardButton(text="🚫 Ban / Unban")],
-        [KeyboardButton(text="👤 User rejimi")],
+        [KeyboardButton(text="✅ Majburiy obuna"), KeyboardButton(text="📢 Bot kanali")],
+        [KeyboardButton(text="📢 Broadcast"), KeyboardButton(text="📊 Statistika")],
+        [KeyboardButton(text="🚫 Ban / Unban"), KeyboardButton(text="👤 User rejimi")],
     ]
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
@@ -97,6 +97,19 @@ def channels_manage_kb(channels: list):
             )
         ])
     buttons.append([InlineKeyboardButton(text="➕ Kanal qo'shish", callback_data="add_channel")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def bot_channels_manage_kb(channels: list):
+    buttons = []
+    for ch in channels:
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"🗑 {ch['channel_name'] or ch['channel_id']}",
+                callback_data=f"delbotch:{ch['id']}"
+            )
+        ])
+    buttons.append([InlineKeyboardButton(text="➕ Kanal qo'shish", callback_data="add_bot_channel")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 

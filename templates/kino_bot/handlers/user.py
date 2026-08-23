@@ -162,7 +162,7 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
         if await kino_db.is_banned(message.from_user.id):
             return
 
-        channels = await kino_db.get_channels()
+        channels = await kino_db.get_bot_channels()
         if not channels:
             await message.answer("📢 Hali kanal qo'shilmagan.")
             return
@@ -194,9 +194,9 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
         if message.from_user.id == admin_id:
             admin_commands = [
                 "➕ Kino qo'shish", "📋 Kinolar ro'yxati",
-                "📢 Kanal sozlash", "📊 Statistika",
-                "📢 Broadcast", "🚫 Ban / Unban",
-                "👤 User rejimi"
+                "✅ Majburiy obuna", "📢 Bot kanali",
+                "📢 Broadcast", "📊 Statistika",
+                "🚫 Ban / Unban", "👤 User rejimi"
             ]
             if message.text in admin_commands:
                 return

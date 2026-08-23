@@ -10,6 +10,10 @@ class AddChannelStates(StatesGroup):
     waiting_channel = State()
 
 
+class AddBotChannelStates(StatesGroup):
+    waiting_channel = State()
+
+
 class BroadcastStates(StatesGroup):
     waiting_message = State()
 
