@@ -4,12 +4,39 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
 from templates.kino_bot.database import KinoDB
-from templates.kino_bot.keyboards import user_kb, subscription_kb
+from templates.kino_bot.keyboards import user_kb, subscription_kb, movie_share_kb
 from templates.kino_bot.handlers.subscription import check_subscription, send_subscription_message
 
 
 def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
     router = Router()
+
+    async def _send_movie(message: Message, movie: dict, bot_username: str):
+        """Send movie to user with share button."""
+        await kino_db.increment_views(movie["id"])
+        caption = (
+            f"🎬 <b>{movie['name']}</b>\n\n"
+            f"📌 Kod: <code>#{movie['code']}</code>\n"
+            f"👁 Ko'rishlar: {movie['views'] + 1}"
+        )
+        if movie.get("caption"):
+            caption += f"\n\n{movie['caption']}"
+
+        share_kb = movie_share_kb(bot_username, movie["code"], movie["name"])
+
+        try:
+            await message.answer_video(
+                movie["file_id"], caption=caption,
+                reply_markup=share_kb, parse_mode="HTML"
+            )
+        except Exception:
+            try:
+                await message.answer_document(
+                    movie["file_id"], caption=caption,
+                    reply_markup=share_kb, parse_mode="HTML"
+                )
+            except Exception:
+                await message.answer("❌ Faylni yuborishda xatolik yuz berdi.")
 
     @router.message(CommandStart())
     async def cmd_start(message: Message, state: FSMContext):
@@ -35,13 +62,28 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
             from templates.kino_bot.keyboards import admin_main_kb
             await message.answer(
                 "👑 <b>Admin Panel</b>\n\n"
-                "Salom, Admin! Botni boshqarish uchun quyidagi tugmalardan foydalaning.",
+                "Salom, Admin! Botni boshqarish uchun tugmalardan foydalaning.",
                 reply_markup=admin_main_kb(),
                 parse_mode="HTML"
             )
             return
 
-        # Professional user greeting — minimal, clean
+        # Check deep link (movie code from share/channel)
+        text = message.text or ""
+        if " " in text:
+            code = text.split(" ", 1)[1].strip()
+            movie = await kino_db.get_movie_by_code(code)
+            if movie:
+                bot_me = await message.bot.get_me()
+                await message.answer(
+                    "✅ Kino topildi!",
+                    reply_markup=user_kb(),
+                    parse_mode="HTML"
+                )
+                await _send_movie(message, movie, bot_me.username)
+                return
+
+        # Professional user greeting
         name = message.from_user.full_name or message.from_user.username or "Foydalanuvchi"
         user_id = message.from_user.id
 
@@ -99,7 +141,22 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
         else:
             await callback.answer("❌ Hali obuna bo'lmagansiz!", show_alert=True)
 
-    # --- 📢 Kanalimiz button handler ---
+    # --- 🔍 Kino qidirish button ---
+    @router.message(F.text == "🔍 Kino qidirish")
+    async def search_prompt(message: Message):
+        if await kino_db.is_banned(message.from_user.id):
+            return
+        if not await check_subscription(message.bot, message.from_user.id, kino_db):
+            await send_subscription_message(message, kino_db)
+            return
+
+        await message.answer(
+            "🔍 <b>Kino qidirish</b>\n\n"
+            "✍🏻 Kino kodini yoki nomini yuboring:",
+            parse_mode="HTML"
+        )
+
+    # --- 📢 Kanalimiz button ---
     @router.message(F.text == "📢 Kanalimiz")
     async def show_channel(message: Message):
         if await kino_db.is_banned(message.from_user.id):
@@ -110,7 +167,6 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
             await message.answer("📢 Hali kanal qo'shilmagan.")
             return
 
-        # Build inline buttons with channel links
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         buttons = []
         for ch in channels:
@@ -143,7 +199,7 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
                 "🚫 Ban / Unban", "👤 User rejimi"
             ]
             if message.text in admin_commands:
-                return  # Let admin router handle it
+                return
 
         # Check ban
         if await kino_db.is_banned(message.from_user.id):
@@ -156,27 +212,13 @@ def create_user_router(kino_db: KinoDB, admin_id: int) -> Router:
             return
 
         query = message.text.strip()
+        bot_me = await message.bot.get_me()
 
         # Try as movie code first
         movie = await kino_db.get_movie_by_code(query)
 
         if movie:
-            await kino_db.increment_views(movie["id"])
-            caption = (
-                f"🎬 <b>{movie['name']}</b>\n\n"
-                f"📌 Kod: <code>#{movie['code']}</code>\n"
-                f"👁 Ko'rishlar: {movie['views'] + 1}"
-            )
-            if movie.get("caption"):
-                caption += f"\n\n{movie['caption']}"
-
-            try:
-                await message.answer_video(movie["file_id"], caption=caption, parse_mode="HTML")
-            except Exception:
-                try:
-                    await message.answer_document(movie["file_id"], caption=caption, parse_mode="HTML")
-                except Exception:
-                    await message.answer("❌ Faylni yuborishda xatolik yuz berdi.")
+            await _send_movie(message, movie, bot_me.username)
         else:
             # Try search by name
             results = await kino_db.search_movies(query, limit=5)
