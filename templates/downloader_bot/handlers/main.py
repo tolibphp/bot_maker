@@ -5,12 +5,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.filters import CommandStart
 import yt_dlp
+import html
 
-from master_bot.emojis import HELLO, CHART, PEOPLE, INBOX, HOURGLASS, CROSS, MOVIE, CROWN, MONEY, HORN, CHECK, WRENCH, DOWN, TRASH
+from master_bot.emojis import HELLO, CHART, PEOPLE, INBOX, HOURGLASS, CROSS, MOVIE, CROWN, MONEY, HORN, CHECK, WRENCH, DOWN, TRASH, SCROLL
 
 class DownloaderAdminStates(StatesGroup):
     waiting_channel_id = State()
     waiting_broadcast = State()
+    waiting_ad_text = State()
 
 def create_router(admin_id: int) -> Router:
     router = Router()
@@ -19,7 +21,8 @@ def create_router(admin_id: int) -> Router:
     def admin_kb():
         return ReplyKeyboardMarkup(keyboard=[
             [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="📢 Xabar yuborish")],
-            [KeyboardButton(text="➕ Kanal qo'shish"), KeyboardButton(text="🗑 Kanallarni o'chirish")]
+            [KeyboardButton(text="➕ Kanal qo'shish"), KeyboardButton(text="🗑 Kanallarni o'chirish")],
+            [KeyboardButton(text="📝 Reklama sozlash")]
         ], resize_keyboard=True)
 
     def cancel_kb():
@@ -32,6 +35,13 @@ def create_router(admin_id: int) -> Router:
             buttons.append([InlineKeyboardButton(text=name, url=f"https://t.me/{ch['channel_id'].replace('@', '')}")])
         buttons.append([InlineKeyboardButton(text="✅ Tasdiqlash", callback_data="check_sub")])
         return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    async def user_main_kb(db):
+        from aiogram.types import ReplyKeyboardRemove
+        ad_text = await db.get_setting("ad_text")
+        if ad_text:
+            return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="📢 Reklama")]], resize_keyboard=True)
+        return ReplyKeyboardRemove()
 
     # --- SUBSCRIPTION ---
     async def check_subscription(bot: Bot, user_id: int, db) -> bool:
@@ -125,7 +135,7 @@ def create_router(admin_id: int) -> Router:
             await db.add_channel(str(ch_info.id), ch_info.title)
             await message.answer(f"{CHECK} Kanal qo'shildi: {ch_info.title}", reply_markup=admin_kb())
         except Exception as e:
-            await message.answer(f"{CROSS} Kanal topilmadi yoki bot u yerda admin emas! Xato: {e}", reply_markup=admin_kb())
+            await message.answer(f"{CROSS} Kanal topilmadi yoki bot u yerda admin emas! Xato: {html.escape(str(e))}", reply_markup=admin_kb())
         await state.clear()
 
     @router.message(F.text == "🗑 Kanallarni o'chirish")
@@ -147,6 +157,32 @@ def create_router(admin_id: int) -> Router:
         await db.delete_channel(ch_id)
         await callback.message.edit_text("Kanal o'chirildi.")
 
+    @router.message(F.text == "📝 Reklama sozlash")
+    async def admin_ad_start(message: Message, state: FSMContext, db):
+        if message.from_user.id != admin_id: return
+        current_ad = await db.get_setting("ad_text")
+        text = f"{SCROLL} <b>Reklama tugmasi sozlamasi</b>\n\n"
+        if current_ad:
+            text += f"Joriy reklama matni:\n<blockquote>{current_ad}</blockquote>\n\n"
+        text += "Foydalanuvchi '📢 Reklama' tugmasini bosganda qanday xabar chiqishini xohlaysiz?\nYangi matnni yuboring (yoki tugmani o'chirish uchun 'ochirish' deb yozing):"
+        await message.answer(text, reply_markup=cancel_kb(), parse_mode="HTML")
+        await state.set_state(DownloaderAdminStates.waiting_ad_text)
+
+    @router.message(DownloaderAdminStates.waiting_ad_text)
+    async def admin_save_ad(message: Message, state: FSMContext, db):
+        if message.from_user.id != admin_id: return
+        if message.text == "❌ Bekor qilish":
+            return await admin_cancel(message, state)
+            
+        new_text = message.text
+        if new_text.lower() == "ochirish":
+            await db.set_setting("ad_text", "")
+            await message.answer(f"{CHECK} Reklama tugmasi o'chirildi.", reply_markup=admin_kb())
+        else:
+            await db.set_setting("ad_text", new_text)
+            await message.answer(f"{CHECK} Reklama matni saqlandi va foydalanuvchilarga ko'rinadi!", reply_markup=admin_kb())
+        await state.clear()
+
     # --- USER HANDLERS ---
     @router.message(CommandStart())
     async def cmd_start(message: Message, db):
@@ -155,9 +191,12 @@ def create_router(admin_id: int) -> Router:
             channels = await db.get_channels()
             await message.answer("Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:", reply_markup=subscription_kb(channels))
             return
+            
+        kb = await user_main_kb(db)
         await message.answer(
             f"{HELLO} <b>Xush kelibsiz!</b>\n\n"
             f"Menga TikTok, Instagram, YouTube yoki boshqa saytdan video ssilkasini yuboring va men uni sizga yuklab beraman!",
+            reply_markup=kb,
             parse_mode="HTML"
         )
 
@@ -167,7 +206,14 @@ def create_router(admin_id: int) -> Router:
             await callback.answer("Siz hali barcha kanallarga obuna bo'lmadingiz!", show_alert=True)
             return
         await callback.message.delete()
-        await callback.message.answer(f"{CHECK} <b>Obuna tasdiqlandi!</b>\n\nEndi videolarni yuborishingiz mumkin.", parse_mode="HTML")
+        kb = await user_main_kb(db)
+        await callback.message.answer(f"{CHECK} <b>Obuna tasdiqlandi!</b>\n\nEndi videolarni yuborishingiz mumkin.", reply_markup=kb, parse_mode="HTML")
+
+    @router.message(F.text == "📢 Reklama")
+    async def cmd_show_ad(message: Message, db):
+        ad_text = await db.get_setting("ad_text")
+        if ad_text:
+            await message.answer(ad_text)
 
     @router.message(F.text.regexp(r'(https?://[^\s]+)'))
     async def handle_url(message: Message, db):
