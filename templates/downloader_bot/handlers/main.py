@@ -253,6 +253,11 @@ def create_router(admin_id: int) -> Router:
         
         try:
             info = await asyncio.to_thread(extract_video_info, url, False)
+            duration = info.get('duration', 0)
+            if duration and duration > 600:
+                await wait_msg.edit_text(f"{CROSS} Kechirasiz, bu video hajmi juda katta! \n\n<b>Izoh:</b> Bizning bot asosan qisqa hajmli (Reels / Shorts / TikTok) videolarni yuklashga mo'ljallangan. Iltimos, qisqaroq havola yuboring.", parse_mode="HTML")
+                return
+
             title = info.get('title', 'Noma\'lum video')
             thumbnail = info.get('thumbnail')
             extractor = str(info.get('extractor_key', '')).lower()
