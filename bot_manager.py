@@ -33,6 +33,13 @@ class BotManager:
                     db_path=bot_data["db_path"],
                     bot_id=bot_id
                 )
+            elif bot_data["template_type"] == "pro_kino":
+                bot_instance = ProKinoBot(
+                    bot_token=bot_data["bot_token"],
+                    admin_id=bot_data["owner_telegram_id"],
+                    db_path=bot_data["db_path"],
+                    bot_id=bot_id
+                )
             elif bot_data["template_type"] == "stars":
                 bot_instance = StarsBot(
                     bot_token=bot_data["bot_token"],
