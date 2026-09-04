@@ -54,6 +54,7 @@ class BotManager:
                     db_path=bot_data["db_path"],
                     bot_id=bot_id
                 )
+
             else:
                 raise ValueError(f"Unknown template type: {bot_data['template_type']}")
 

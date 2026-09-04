@@ -17,6 +17,14 @@ class AdminAddBalanceStates(StatesGroup):
     waiting_amount = State()
 
 
+class BroadcastStates(StatesGroup):
+    waiting_for_message = State()
+
+
+class AddChannelStates(StatesGroup):
+    waiting_channel = State()
+
+
 class AdminBroadcastStates(StatesGroup):
     waiting_message = State()
 
@@ -24,3 +32,11 @@ class AdminBroadcastStates(StatesGroup):
 class AdminPriceStates(StatesGroup):
     waiting_price_type = State()
     waiting_new_price = State()
+
+class PromocodeStates(StatesGroup):
+    waiting_code = State()
+    waiting_reward = State()
+    waiting_limit = State()
+
+class UsePromocodeStates(StatesGroup):
+    waiting_code = State()
