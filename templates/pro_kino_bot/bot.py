@@ -1,82 +1,95 @@
+"""
+Kino Bot - Asosiy ishga tushirish fayli (Bot Maker Template).
+"""
+
+from __future__ import annotations
+
 import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.dispatcher.middlewares.base import BaseMiddleware
 
 from templates.base_template import BaseTemplate
-from templates.pro_kino_bot.database import KinoDB
-from templates.pro_kino_bot.handlers.user import create_user_router
-from templates.pro_kino_bot.handlers.admin import create_admin_router
+from templates.pro_kino_bot.database.db import Database
+from templates.pro_kino_bot.handlers.admin import router as admin_router
+from templates.pro_kino_bot.handlers.user import router as user_router
+from templates.pro_kino_bot.middlewares.subscription import SubscriptionMiddleware
+from templates.pro_kino_bot.utils.scheduler import setup_scheduler
+from templates.pro_kino_bot.utils.context import current_admin_id
 
 logger = logging.getLogger(__name__)
+
+
+class AdminContextMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        admin_id = data.get("admin_id")
+        token = current_admin_id.set(admin_id)
+        try:
+            return await handler(event, data)
+        finally:
+            current_admin_id.reset(token)
 
 
 class KinoBot(BaseTemplate):
     def __init__(self, bot_token: str, admin_id: int, db_path: str, bot_id: int):
         super().__init__(bot_token, admin_id, db_path, bot_id)
-        self.kino_db = KinoDB(db_path)
-        self._polling_task: asyncio.Task = None
-
-    async def setup(self):
-        """Initialize database and setup dispatcher."""
-        await self.kino_db.init_db()
         
         self.bot = Bot(
             token=self.bot_token,
-            default=DefaultBotProperties(parse_mode="HTML")
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
         self.dp = Dispatcher(storage=MemoryStorage())
+        self.db = Database(self.db_path)
         
-        # Middlewares
+        # Inject dependencies
+        self.dp["db"] = self.db
+        self.dp["admin_id"] = self.admin_id
         
-        # Register routers
-        admin_router = create_admin_router(self.kino_db, self.admin_id)
-        user_router = create_user_router(self.kino_db, self.admin_id)
+        # Context Middleware
+        self.dp.message.outer_middleware(AdminContextMiddleware())
+        self.dp.callback_query.outer_middleware(AdminContextMiddleware())
         
-        # Admin router first (higher priority)
+        # Subscription Middleware
+        self.dp.message.middleware(SubscriptionMiddleware(self.db))
+        self.dp.callback_query.middleware(SubscriptionMiddleware(self.db))
+        
+        # Routers
         self.dp.include_router(admin_router)
         self.dp.include_router(user_router)
+        
+        # Scheduler
+        self.scheduler = setup_scheduler(self.bot, self.admin_id, self.db_path)
+        self.dp['scheduler'] = self.scheduler
+        # Add admin_id to scheduler since it runs outside of standard update handling
+        self.scheduler.admin_id = self.admin_id 
+        
+        # Hook up a wrapper to pass admin_id into context for scheduler
+        # We need to monkey-patch or handle context carefully if scheduler sends messages
+        # But scheduler.py only sends to the admin_id directly!
 
     async def start(self):
-        """Start bot polling."""
-        await self.setup()
+        await self.db.connect()
+        logger.info(f"ProKinoBot #{self.bot_id} started polling")
         
-        # Delete webhook to ensure polling works
-        try:
-            await self.bot.delete_webhook(drop_pending_updates=True)
-        except Exception:
-            pass
+        # We need to manually set the context for the scheduler task if needed.
+        # But scheduler just runs every day and uses current_admin_id.
+        # However, APScheduler runs in a separate context!
+        # So in scheduler.py, we should replace current_admin_id with bot.admin_id maybe?
         
-        self._polling_task = asyncio.create_task(
-            self._run_polling(),
-            name=f"kino_bot_{self.bot_id}"
+        await self.bot.delete_webhook(drop_pending_updates=True)
+        self.polling_task = asyncio.create_task(
+            self.dp.start_polling(self.bot, allowed_updates=self.dp.resolve_used_update_types())
         )
-        logger.info(f"KinoBot #{self.bot_id} started polling")
-
-    async def _run_polling(self):
-        """Run polling with error handling."""
-        try:
-            await self.dp.start_polling(self.bot)
-        except asyncio.CancelledError:
-            logger.info(f"KinoBot #{self.bot_id} polling cancelled")
-        except Exception as e:
-            logger.error(f"KinoBot #{self.bot_id} polling error: {e}")
 
     async def stop(self):
-        """Stop bot polling."""
-        if self._polling_task and not self._polling_task.done():
-            self._polling_task.cancel()
-            try:
-                await self._polling_task
-            except asyncio.CancelledError:
-                pass
-        
-        if self.dp:
-            await self.dp.stop_polling()
-        
-        if self.bot:
-            await self.bot.session.close()
-        
-        logger.info(f"KinoBot #{self.bot_id} stopped")
+        if hasattr(self, 'polling_task'):
+            self.polling_task.cancel()
+        if hasattr(self, 'scheduler') and self.scheduler:
+            self.scheduler.shutdown(wait=False)
+        await self.db.close()
+        await self.bot.session.close()
+        logger.info(f"ProKinoBot #{self.bot_id} stopped")

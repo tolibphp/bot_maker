@@ -1,17 +1,23 @@
 ﻿import os
+import glob
+import re
 
-def replace_in_folder(folder_path, old_text, new_text):
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            if file.endswith('.py'):
-                file_path = os.path.join(root, file)
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                if old_text in content:
-                    content = content.replace(old_text, new_text)
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        f.write(content)
-                    print(f"Updated {file_path}")
+base_dir = r"C:\Users\user\Desktop\bot_maker\templates\pro_kino_bot"
 
-replace_in_folder('templates/pro_kino_bot', 'templates.kino_bot', 'templates.pro_kino_bot')
+prefixes = ['database', 'handlers', 'keyboards', 'middlewares', 'states', 'utils']
+
+for root, _, files in os.walk(base_dir):
+    for file in files:
+        if file.endswith('.py'):
+            path = os.path.join(root, file)
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Fix absolute imports
+            for prefix in prefixes:
+                content = re.sub(rf"^import {prefix}\.", f"import templates.pro_kino_bot.{prefix}.", content, flags=re.MULTILINE)
+                content = re.sub(rf"^from {prefix}", f"from templates.pro_kino_bot.{prefix}", content, flags=re.MULTILINE)
+            
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(content)
+print("Imports fixed")
