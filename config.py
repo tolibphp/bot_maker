@@ -22,7 +22,8 @@ FREE_TRIAL_DAYS = 30
 
 # Bot templates
 TEMPLATES = {
-    "kino": {"name": "🎬 Kino Bot", "price": 30_000, "module": "kino_bot", "daily_price": 5000},
+    "kino": {"name": "🎬 Oddiy Kino Bot", "price": 10_000, "module": "kino_bot", "daily_price": 2000},
+    "pro_kino": {"name": "🎬🔥 Professional Kino Bot", "price": 30_000, "module": "pro_kino_bot", "daily_price": 5000},
     "stars": {"name": "⭐️ Stars Referral Bot", "price": 10_000, "module": "stars_bot", "daily_price": 2000},
     "money": {"name": "💸 Premium Pul Ishlash", "price": 10_000, "module": "money_bot", "daily_price": 2000},
     "downloader": {"name": "📥 Video Yuklovchi Bot", "price": 10_000, "module": "downloader_bot", "daily_price": 2000}

@@ -6,9 +6,10 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 
 from templates.base_template import BaseTemplate
-from templates.kino_bot.database import KinoDB
-from templates.kino_bot.handlers.user import create_user_router
-from templates.kino_bot.handlers.admin import create_admin_router
+from templates.pro_kino_bot.database import KinoDB
+from templates.pro_kino_bot.handlers.user import create_user_router
+from templates.pro_kino_bot.handlers.admin import create_admin_router
+from templates.pro_kino_bot.middlewares.subscription import SubscriptionMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,10 @@ class KinoBot(BaseTemplate):
             default=DefaultBotProperties(parse_mode="HTML")
         )
         self.dp = Dispatcher(storage=MemoryStorage())
+        
+        # Middlewares
+        self.dp.message.middleware(SubscriptionMiddleware(self.kino_db))
+        self.dp.callback_query.middleware(SubscriptionMiddleware(self.kino_db))
         
         # Register routers
         admin_router = create_admin_router(self.kino_db, self.admin_id)

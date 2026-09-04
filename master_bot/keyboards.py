@@ -38,7 +38,8 @@ def admin_panel_kb():
 
 def templates_kb():
     buttons = [
-        [InlineKeyboardButton(text=" Kino Bot - 30,000 so'm", callback_data="template:kino", icon_custom_emoji_id=MOVIE_ID, style="primary")],
+        [InlineKeyboardButton(text=" Oddiy Kino Bot - 10,000 so'm", callback_data="template:kino", icon_custom_emoji_id=MOVIE_ID, style="primary")],
+        [InlineKeyboardButton(text=" Professional Kino Bot - 30,000 so'm", callback_data="template:pro_kino", icon_custom_emoji_id=MOVIE_ID, style="primary")],
         [InlineKeyboardButton(text=" Stars Referral Bot - 10,000 so'm", callback_data="template:stars", icon_custom_emoji_id=STAR_ID, style="primary")],
         [InlineKeyboardButton(text=" Premium Pul Ishlash - 10,000 so'm", callback_data="template:money", icon_custom_emoji_id=CASH_ID, style="primary")],
         [InlineKeyboardButton(text=" Video Yuklovchi - 10,000 so'm", callback_data="template:downloader", icon_custom_emoji_id=INBOX_ID, style="primary")],
