@@ -71,6 +71,10 @@ class KinoBot(BaseTemplate):
         # We need to monkey-patch or handle context carefully if scheduler sends messages
         # But scheduler.py only sends to the admin_id directly!
 
+    async def setup(self):
+        """Setup bot (implemented in init)"""
+        pass
+
     async def start(self):
         await self.db.connect()
         logger.info(f"ProKinoBot #{self.bot_id} started polling")
