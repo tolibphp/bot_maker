@@ -4,6 +4,7 @@ import logging
 from database.bots import get_all_active_bots, get_bot, update_bot_status
 from templates.base_template import BaseTemplate
 from templates.kino_bot import KinoBot
+from templates.pro_kino_bot.bot import KinoBot as ProKinoBot
 from templates.stars_bot import StarsBot
 from templates.money_bot import MoneyBot
 
